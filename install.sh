@@ -50,7 +50,7 @@ case $warning_answer in y|Y|yes|YES|Yes) ;; *) printf '%s\n' 'Sync cancelled.' >
 if [ ! -d "$root" ]; then mkdir -p "$root"; fi
 mkdir -p "$root/approved"
 runner=$(curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh")
-printf '%s\n' "$runner" | sh - "$root" "$BASE_URL"
+printf '%s\n' "$runner" | sh -s -- "$root" "$BASE_URL"
 
 if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
   printf 'Synced wallpapers to %s/approved.\n' "$root"
@@ -82,7 +82,7 @@ quote_arg() {
 temporary=$(mktemp)
 trap 'rm -f "$temporary"' EXIT HUP INT TERM
 (crontab -l 2>/dev/null || true) | grep -vF '# wallpaper-sync-managed' > "$temporary" || true
-cron_command="curl -fsSL --proto '=https' --proto-redir '=https' $(quote_arg "$BASE_URL/run_sync.sh") | sh - $(quote_arg "$root") $(quote_arg "$BASE_URL")"
+cron_command="curl -fsSL --proto '=https' --proto-redir '=https' $(quote_arg "$BASE_URL/run_sync.sh") | sh -s -- $(quote_arg "$root") $(quote_arg "$BASE_URL")"
 printf '%s %s >/dev/null 2>&1 # wallpaper-sync-managed\n' \
   "$cron_time" "$cron_command" >> "$temporary"
 crontab "$temporary"

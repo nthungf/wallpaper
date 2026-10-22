@@ -23,4 +23,4 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 database=$work/approved-links.sqlite
 curl -fsSL --proto '=https' --proto-redir '=https' "$base_url/approved-links.sqlite" -o "$database"
 sync_script=$(curl -fsSL --proto '=https' --proto-redir '=https' "$base_url/sync_approved.sh")
-printf '%s\n' "$sync_script" | sh - "$database" "$root"
+printf '%s\n' "$sync_script" | sh -s -- "$database" "$root"
