@@ -59,8 +59,25 @@ total=$(wc -l < "$work/approved.tsv" | tr -d ' ')
 done_count=0
 failed=0
 removed=0
+show_progress=0
+[ -t 1 ] && show_progress=1
+draw_progress() {
+  [ "$show_progress" -eq 1 ] || return 0
+  current=$1
+  maximum=$2
+  width=24
+  filled=$((current * width / maximum))
+  bar=
+  position=0
+  while [ "$position" -lt "$width" ]; do
+    if [ "$position" -lt "$filled" ]; then bar="${bar}#"; else bar="${bar}-"; fi
+    position=$((position + 1))
+  done
+  printf '\r\033[K[%s] %s/%s' "$bar" "$current" "$maximum"
+}
 keep_names=$work/approved-names.txt
 : > "$keep_names"
+if [ "$total" -gt 0 ]; then draw_progress 0 "$total"; fi
 while IFS="$tab" read -r image_id name image_url; do
   case $image_id in ''|*[!A-Za-z0-9]*)
     printf 'Skipping invalid image ID: %s\n' "$image_id" >&2
@@ -103,8 +120,10 @@ while IFS="$tab" read -r image_id name image_url; do
     temp_file=
   fi
   done_count=$((done_count + 1))
-  printf 'Synced %s of %s: %s\n' "$done_count" "$total" "$name"
+  draw_progress "$done_count" "$total"
 done < "$work/approved.tsv"
+
+if [ "$show_progress" -eq 1 ] && [ "$total" -gt 0 ]; then printf '\n'; fi
 
 if [ "$failed" -eq 0 ]; then
   for existing in "$approved_dir"/wallhaven-*; do
@@ -120,7 +139,6 @@ if [ "$failed" -eq 0 ]; then
     if ! grep -Fqx "$name" "$keep_names"; then
       rm -f "$existing"
       removed=$((removed + 1))
-      printf 'Removed no-longer-approved image: %s\n' "$name"
     fi
   done
 else
