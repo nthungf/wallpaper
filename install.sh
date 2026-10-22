@@ -14,6 +14,13 @@ for command_name in curl sqlite3; do
 done
 
 default_root=$(pwd)/wallpapers
+config_home=${XDG_CONFIG_HOME:-${HOME:?}/.config}
+folder_config=$config_home/wallpaper-sync/folder
+if [ -r "$folder_config" ]; then
+  saved_root=
+  IFS= read -r saved_root < "$folder_config" || true
+  if [ -n "${saved_root:-}" ]; then default_root=$saved_root; fi
+fi
 if [ -r /dev/tty ] && [ -w /dev/tty ]; then
   printf 'Wallpaper folder [%s]: ' "$default_root" >/dev/tty
   IFS= read -r root </dev/tty || root=
@@ -49,6 +56,11 @@ IFS= read -r warning_answer </dev/tty || warning_answer=
 case $warning_answer in y|Y|yes|YES|Yes) ;; *) printf '%s\n' 'Sync cancelled.' >&2; exit 1 ;; esac
 if [ ! -d "$root" ]; then mkdir -p "$root"; fi
 mkdir -p "$root/approved"
+if mkdir -p "${folder_config%/*}" && printf '%s\n' "$root" > "$folder_config"; then
+  :
+else
+  printf 'Could not save the last wallpaper folder in %s.\n' "$folder_config" >&2
+fi
 runner=$(curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh")
 printf '%s\n' "$runner" | sh -s -- "$root" "$BASE_URL"
 

@@ -45,7 +45,7 @@ The receiving computer needs `curl` and the `sqlite3` command-line tool. It does
 curl -fsSL https://raw.githubusercontent.com/nthungf/wallpaper/main/install.sh | sh
 ```
 
-The installer prompts for a wallpaper folder (default: `./wallpapers`), syncs immediately, then offers daily, weekly, or hourly updates. It downloads the SQLite bundle temporarily and removes it after syncing. Only approved wallpaper images remain in the selected folder. Cleanup removes outdated images only after every bundle row is valid and all required downloads succeed.
+The installer prompts for a wallpaper folder (initial default: `./wallpapers`), remembers your last selection for next time, syncs immediately, then offers daily, weekly, or hourly updates. It downloads the SQLite bundle temporarily and removes it after syncing. Only approved wallpaper images remain in the selected folder. Cleanup removes outdated images only after every bundle row is valid and all required downloads succeed.
 
 To remove an automatic sync, run `crontab -e` and delete the line marked `# wallpaper-sync-managed`. Downloaded wallpapers stay in the folder.
 
