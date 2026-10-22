@@ -1,0 +1,18 @@
+# Local review state and downloaded image files
+catalog.sqlite
+catalog.sqlite-*
+approved/
+rejected/
+candidates/
+metadata.jsonl
+sources.tsv
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+
+# Local sync/install state
+.wallpaper-sync/
+.approved-links-sync-mode
+sync.log
+*.part
