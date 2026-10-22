@@ -2,12 +2,8 @@
 set -eu
 
 # Set this to the raw URL of the directory containing the sync files and bundle.
-BASE_URL=${WALLPAPER_SYNC_BASE_URL:-https://raw.githubusercontent.com/OWNER/REPO/main}
+BASE_URL=${WALLPAPER_SYNC_BASE_URL:-https://raw.githubusercontent.com/nthungf/wallpaper/main}
 
-if [ "$BASE_URL" = 'https://raw.githubusercontent.com/OWNER/REPO/main' ]; then
-  printf '%s\n' 'Set WALLPAPER_SYNC_BASE_URL or edit BASE_URL in install.sh before hosting it.' >&2
-  exit 1
-fi
 case $BASE_URL in https://*) ;; *) printf '%s\n' 'BASE_URL must use HTTPS.' >&2; exit 1 ;; esac
 
 for command_name in curl sqlite3; do
@@ -28,17 +24,12 @@ root=${root:-$default_root}
 case $root in '~/'*) root=${HOME:?}/"${root#~/}" ;; esac
 mkdir -p "$root"
 root=$(CDPATH= cd -- "$root" && pwd)
-sync_dir=$root/.wallpaper-sync
-mkdir -p "$sync_dir" "$root/approved"
-
-curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/sync_approved.sh" -o "$sync_dir/sync_approved.sh"
-curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh" -o "$sync_dir/run_sync.sh"
-curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/uninstall.sh" -o "$sync_dir/uninstall.sh"
-printf '%s\n' "${BASE_URL%/}" > "$sync_dir/base-url"
-sh "$sync_dir/run_sync.sh"
+mkdir -p "$root/approved"
+runner=$(curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh")
+printf '%s\n' "$runner" | sh - "$root" "$BASE_URL"
 
 if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
-  printf 'Installed in %s. Run %s/uninstall.sh to remove it.\n' "$root" "$sync_dir"
+  printf 'Synced wallpapers to %s/approved.\n' "$root"
   exit 0
 fi
 
@@ -50,13 +41,13 @@ case $schedule in
   1) cron_time='0 3 * * *' ;;
   2) cron_time='0 3 * * 0' ;;
   3) cron_time='0 * * * *' ;;
-  4) printf 'Installed in %s. Run %s/uninstall.sh to remove it.\n' "$root" "$sync_dir"; exit 0 ;;
+  4) printf 'Synced wallpapers to %s/approved.\n' "$root"; exit 0 ;;
   *) printf '%s\n' 'Unknown choice; skipping cron setup.'; exit 0 ;;
 esac
 
 if ! command -v crontab >/dev/null 2>&1; then
   printf '%s\n' 'crontab is unavailable; initial sync completed without a schedule.'
-  printf 'Installed in %s. Run %s/uninstall.sh to remove it.\n' "$root" "$sync_dir"
+  printf 'Synced wallpapers to %s/approved; cron was not available.\n' "$root"
   exit 0
 fi
 
@@ -67,7 +58,8 @@ quote_arg() {
 temporary=$(mktemp)
 trap 'rm -f "$temporary"' EXIT HUP INT TERM
 (crontab -l 2>/dev/null || true) | grep -vF '# wallpaper-sync-managed' > "$temporary" || true
-printf '%s %s %s >> %s 2>&1 # wallpaper-sync-managed\n' \
-  "$cron_time" "$(quote_arg sh)" "$(quote_arg "$sync_dir/run_sync.sh")" "$(quote_arg "$sync_dir/sync.log")" >> "$temporary"
+cron_command="curl -fsSL --proto '=https' --proto-redir '=https' $(quote_arg "$BASE_URL/run_sync.sh") | sh - $(quote_arg "$root") $(quote_arg "$BASE_URL")"
+printf '%s %s >/dev/null 2>&1 # wallpaper-sync-managed\n' \
+  "$cron_time" "$cron_command" >> "$temporary"
 crontab "$temporary"
-printf 'Installed in %s and scheduled automatic sync. Run %s/uninstall.sh to remove it.\n' "$root" "$sync_dir"
+printf 'Synced wallpapers to %s/approved and scheduled automatic sync.\n' "$root"

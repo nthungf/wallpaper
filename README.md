@@ -2,6 +2,8 @@
 
 Review Wallhaven images locally, publish approved image links, and sync approved wallpapers to another computer.
 
+Repository: [github.com/nthungf/wallpaper](https://github.com/nthungf/wallpaper) (`git@github.com:nthungf/wallpaper.git`).
+
 ## Run the review app
 
 ```sh
@@ -37,27 +39,14 @@ Commit and push the staged `approved-links.sqlite` to publish it. The bundle con
 
 ## Sync on another computer
 
-The receiving computer needs `curl` and the `sqlite3` command-line tool. It does not need Python.
-Sync downloads newly approved images and removes local `approved/` wallpapers that are no longer in the bundle. Cleanup runs only when every bundle row is valid and all required downloads succeed; any failure keeps the existing local images for that run.
-
-To sync a bundle manually:
+The receiving computer needs `curl` and the `sqlite3` command-line tool. It does not need Python. Run this there:
 
 ```sh
-sh /path/to/wallpaper/sync_approved.sh /path/to/approved-links.sqlite [wallpaper-folder]
+curl -fsSL https://raw.githubusercontent.com/nthungf/wallpaper/main/install.sh | sh
 ```
 
-To install from a hosted repository, first set `BASE_URL` in `install.sh` to the HTTPS raw URL of the folder containing the sync scripts and `approved-links.sqlite`. Then run:
+The installer prompts for a wallpaper folder (default: `./wallpapers`), syncs immediately, then offers daily, weekly, or hourly updates. It downloads the SQLite bundle temporarily and removes it after syncing. Only approved wallpaper images remain in the selected folder. Cleanup removes outdated images only after every bundle row is valid and all required downloads succeed.
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | sh
-```
-
-The installer asks for a wallpaper folder (default `./wallpapers`), syncs immediately, then offers daily, weekly, or hourly cron updates. Uninstall with:
-
-```sh
-sh /path/to/wallpapers/.wallpaper-sync/uninstall.sh
-```
-
-Uninstall removes the cron job and helper files, but keeps downloaded wallpapers.
+To remove an automatic sync, run `crontab -e` and delete the line marked `# wallpaper-sync-managed`. Downloaded wallpapers stay in the folder.
 
 Wallhaven images belong to their respective owners. Check an image's source page before redistributing it.
