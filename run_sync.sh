@@ -8,6 +8,7 @@ fi
 root=$1
 base_url=$2
 case $root in '~/'*) root=${HOME:?}/"${root#~/}" ;; esac
+case $root in /*) ;; *) root=$PWD/$root ;; esac
 case $base_url in https://*) ;; *) printf '%s\n' 'Sync URL must use HTTPS.' >&2; exit 1 ;; esac
 
 for command_name in curl sqlite3; do

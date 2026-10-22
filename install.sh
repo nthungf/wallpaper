@@ -22,8 +22,32 @@ else
 fi
 root=${root:-$default_root}
 case $root in '~/'*) root=${HOME:?}/"${root#~/}" ;; esac
-mkdir -p "$root"
-root=$(CDPATH= cd -- "$root" && pwd)
+case $root in
+  /*) ;;
+  *) root=$PWD/$root ;;
+esac
+
+if [ -e "$root" ] && [ ! -d "$root" ]; then
+  printf 'Wallpaper path exists and is not a folder: %s\n' "$root" >&2
+  exit 1
+fi
+if [ ! -d "$root" ]; then
+  if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+    printf 'Wallpaper folder does not exist: %s\nRun the installer interactively to confirm folder creation.\n' "$root" >&2
+    exit 1
+  fi
+  printf 'Folder does not exist: %s\nCreate it? [y/N] ' "$root" >/dev/tty
+  IFS= read -r create_answer </dev/tty || create_answer=
+  case $create_answer in y|Y|yes|YES|Yes) ;; *) printf '%s\n' 'Folder creation cancelled.' >&2; exit 1 ;; esac
+fi
+if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+  printf '%s\n' 'Run the installer interactively to review the wallpaper cleanup warning.' >&2
+  exit 1
+fi
+printf 'Warning: sync can remove wallhaven-* images in %s/approved when they are no longer approved. Continue? [y/N] ' "$root" >/dev/tty
+IFS= read -r warning_answer </dev/tty || warning_answer=
+case $warning_answer in y|Y|yes|YES|Yes) ;; *) printf '%s\n' 'Sync cancelled.' >&2; exit 1 ;; esac
+if [ ! -d "$root" ]; then mkdir -p "$root"; fi
 mkdir -p "$root/approved"
 runner=$(curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh")
 printf '%s\n' "$runner" | sh - "$root" "$BASE_URL"
