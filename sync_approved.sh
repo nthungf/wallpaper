@@ -58,6 +58,7 @@ fi
 total=$(wc -l < "$work/approved.tsv" | tr -d ' ')
 done_count=0
 failed=0
+invalid=0
 removed=0
 show_progress=0
 [ -t 1 ] && show_progress=1
@@ -82,14 +83,15 @@ while IFS="$tab" read -r image_id name image_url; do
   case $image_id in ''|*[!A-Za-z0-9]*)
     printf 'Skipping invalid image ID: %s\n' "$image_id" >&2
     failed=$((failed + 1))
+    invalid=$((invalid + 1))
     continue
   esac
   case $name in
     "wallhaven-$image_id.jpg"|"wallhaven-$image_id.jpeg"|"wallhaven-$image_id.png"|"wallhaven-$image_id.webp") ;;
-    *) printf 'Skipping invalid filename: %s\n' "$name" >&2; failed=$((failed + 1)); continue ;;
+    *) printf 'Skipping invalid filename: %s\n' "$name" >&2; failed=$((failed + 1)); invalid=$((invalid + 1)); continue ;;
   esac
   case $image_url in https://w.wallhaven.cc/*) ;;
-    *) printf 'Skipping unexpected image URL for %s\n' "$name" >&2; failed=$((failed + 1)); continue ;;
+    *) printf 'Skipping unexpected image URL for %s\n' "$name" >&2; failed=$((failed + 1)); invalid=$((invalid + 1)); continue ;;
   esac
   printf '%s\n' "$name" >> "$keep_names"
 
@@ -125,7 +127,7 @@ done < "$work/approved.tsv"
 
 if [ "$show_progress" -eq 1 ] && [ "$total" -gt 0 ]; then printf '\n'; fi
 
-if [ "$failed" -eq 0 ]; then
+if [ "$invalid" -eq 0 ]; then
   for existing in "$approved_dir"/wallhaven-*; do
     [ -f "$existing" ] || continue
     name=${existing##*/}
@@ -142,7 +144,7 @@ if [ "$failed" -eq 0 ]; then
     fi
   done
 else
-  printf 'Skipped cleanup because %s sync item(s) failed.\n' "$failed"
+  printf 'Skipped cleanup because %s bundle row(s) were invalid.\n' "$invalid"
 fi
 
 printf 'Finished: %s approved images available; %s removed; %s failed.\n' "$done_count" "$removed" "$failed"

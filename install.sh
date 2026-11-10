@@ -3,6 +3,7 @@ set -eu
 
 # Set this to the raw URL of the directory containing the sync files and bundle.
 BASE_URL=${WALLPAPER_SYNC_BASE_URL:-https://raw.githubusercontent.com/nthungf/wallpaper/main}
+BUNDLE_URL=${WALLPAPER_SYNC_BUNDLE_URL:-https://api.github.com/repos/nthungf/wallpaper/contents/approved-links.sqlite?ref=main}
 
 case $BASE_URL in https://*) ;; *) printf '%s\n' 'BASE_URL must use HTTPS.' >&2; exit 1 ;; esac
 
@@ -62,7 +63,7 @@ else
   printf 'Could not save the last wallpaper folder in %s.\n' "$folder_config" >&2
 fi
 runner=$(curl -fsSL --proto '=https' --proto-redir '=https' "$BASE_URL/run_sync.sh")
-printf '%s\n' "$runner" | sh -s -- "$root" "$BASE_URL"
+printf '%s\n' "$runner" | sh -s -- "$root" "$BASE_URL" "$BUNDLE_URL"
 
 if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
   printf 'Synced wallpapers to %s/approved.\n' "$root"
@@ -91,11 +92,26 @@ quote_arg() {
   escaped=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
   printf "'%s'" "$escaped"
 }
+cron_path=/usr/local/bin:/usr/bin:/bin
+for command_name in curl sqlite3; do
+  command_path=$(command -v "$command_name")
+  case $command_path in
+    */*) command_dir=${command_path%/*} ;;
+    *) continue ;;
+  esac
+  case :$cron_path: in
+    *:"$command_dir":*) ;;
+    *) cron_path=$command_dir:$cron_path ;;
+  esac
+done
+state_home=${XDG_STATE_HOME:-${HOME:?}/.local/state}
+mkdir -p "$state_home"
+sync_log=$state_home/wallpaper-sync.log
 temporary=$(mktemp)
 trap 'rm -f "$temporary"' EXIT HUP INT TERM
 (crontab -l 2>/dev/null || true) | grep -vF '# wallpaper-sync-managed' > "$temporary" || true
-cron_command="curl -fsSL --proto '=https' --proto-redir '=https' $(quote_arg "$BASE_URL/run_sync.sh") | sh -s -- $(quote_arg "$root") $(quote_arg "$BASE_URL")"
-printf '%s %s >/dev/null 2>&1 # wallpaper-sync-managed\n' \
-  "$cron_time" "$cron_command" >> "$temporary"
+cron_command="PATH=$(quote_arg "$cron_path"); (curl -fsSL --proto '=https' --proto-redir '=https' $(quote_arg "$BASE_URL/run_sync.sh") | sh -s -- $(quote_arg "$root") $(quote_arg "$BASE_URL") $(quote_arg "$BUNDLE_URL"))"
+printf '%s %s >> %s 2>&1 # wallpaper-sync-managed\n' \
+  "$cron_time" "$cron_command" "$(quote_arg "$sync_log")" >> "$temporary"
 crontab "$temporary"
-printf 'Synced wallpapers to %s/approved and scheduled automatic sync.\n' "$root"
+printf 'Synced wallpapers to %s/approved and scheduled automatic sync. Log: %s\n' "$root" "$sync_log"

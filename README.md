@@ -35,7 +35,7 @@ After changing approvals, refresh and stage the shareable link bundle:
 ./update-approved.sh
 ```
 
-Commit and push the staged `approved-links.sqlite` to publish it. The bundle contains approved links and metadata, not wallpaper image files. The full local `catalog.sqlite` stays private and should not be shared between computers.
+Commit and push the staged `approved-links.sqlite` to publish it. Rejections stay local until this bundle is regenerated and pushed; syncing a receiver cannot publish catalog changes. The bundle contains approved links and metadata, not wallpaper image files. The full local `catalog.sqlite` stays private and should not be shared between computers.
 
 ## Sync on another computer
 
@@ -45,7 +45,7 @@ The receiving computer needs `curl` and the `sqlite3` command-line tool. It does
 curl -fsSL https://raw.githubusercontent.com/nthungf/wallpaper/main/install.sh | sh
 ```
 
-The installer prompts for a wallpaper folder (initial default: `./wallpapers`), remembers your last selection for next time, syncs immediately, then offers daily, weekly, or hourly updates. It downloads the SQLite bundle temporarily and removes it after syncing. Only approved wallpaper images remain in the selected folder. Cleanup removes outdated images only after every bundle row is valid and all required downloads succeed.
+The installer prompts for a wallpaper folder (initial default: `./wallpapers`), remembers your last selection for next time, syncs immediately, then offers daily, weekly, or hourly updates. It downloads the latest SQLite bundle through GitHub's Contents API into a temporary directory and removes it after syncing. Only approved wallpaper images remain in the selected folder. Cleanup removes outdated images when all bundle rows are valid, even if an image download fails. Scheduled sync uses the current `curl` and `sqlite3` paths and logs to `~/.local/state/wallpaper-sync.log`.
 
 To remove an automatic sync, run `crontab -e` and delete the line marked `# wallpaper-sync-managed`. Downloaded wallpapers stay in the folder.
 

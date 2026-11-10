@@ -178,6 +178,8 @@ def sync_rows(rows, root=ROOT, delay=0.5, progress=None, stop=None):
     approved_dir = root / "approved"
     approved_dir.mkdir(parents=True, exist_ok=True)
     complete, errors = [], []
+    manifest_names = set()
+    invalid_rows = 0
     last_download = 0.0
     stopped = False
     for index, row in enumerate(rows):
@@ -186,39 +188,46 @@ def sync_rows(rows, root=ROOT, delay=0.5, progress=None, stop=None):
             break
         try:
             validate_row(row)
-            target = approved_dir / row["name"]
-            existed = target.is_file()
-            if not existed:
-                wait = delay - (time.monotonic() - last_download)
-                if last_download and wait > 0:
-                    if stop and stop.wait(wait):
-                        stopped = True
-                        break
-                    elif not stop:
-                        time.sleep(wait)
-                payload = fetch(row["image_url"])
-                last_download = time.monotonic()
-                if not valid_image_payload(payload, target.suffix.lower()):
-                    raise ValueError("Downloaded data is not a valid image of the expected type")
-                temp = target.with_suffix(target.suffix + ".part")
-                try:
-                    temp.write_bytes(payload)
-                    temp.replace(target)
-                finally:
-                    temp.unlink(missing_ok=True)
-            complete.append(row)
-            message = f"Already local: {row['name']}" if existed else f"Downloaded {row['name']}"
         except Exception as error:
+            invalid_rows += 1
             errors.append((row.get("name", "(unnamed)"), str(error)))
             message = f"Failed {row.get('name', '(unnamed)')}: {error}"
+        else:
+            manifest_names.add(row["name"])
+            try:
+                target = approved_dir / row["name"]
+                existed = target.is_file()
+                if not existed:
+                    wait = delay - (time.monotonic() - last_download)
+                    if last_download and wait > 0:
+                        if stop and stop.wait(wait):
+                            stopped = True
+                            break
+                        elif not stop:
+                            time.sleep(wait)
+                    payload = fetch(row["image_url"])
+                    last_download = time.monotonic()
+                    if not valid_image_payload(payload, target.suffix.lower()):
+                        raise ValueError("Downloaded data is not a valid image of the expected type")
+                    temp = target.with_suffix(target.suffix + ".part")
+                    try:
+                        temp.write_bytes(payload)
+                        temp.replace(target)
+                    finally:
+                        temp.unlink(missing_ok=True)
+                complete.append(row)
+                message = f"Already local: {row['name']}" if existed else f"Downloaded {row['name']}"
+            except Exception as error:
+                errors.append((row.get("name", "(unnamed)"), str(error)))
+                message = f"Failed {row.get('name', '(unnamed)')}: {error}"
         if progress:
             progress(index + 1, len(rows), message)
 
     if stop and stop.is_set():
         stopped = True
     removed = 0
-    if not errors and not stopped:
-        keep = {row["name"] for row in complete}
+    if invalid_rows == 0 and not stopped:
+        keep = manifest_names
         for path in approved_dir.iterdir():
             if not path.is_file() or not IMAGE_NAME.fullmatch(path.name) or path.name in keep:
                 continue
